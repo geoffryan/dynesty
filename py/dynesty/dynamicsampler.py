@@ -1453,7 +1453,8 @@ class DynamicSampler(object):
                    n_effective=np.inf,
                    stop_function=None, stop_kwargs=None, use_stop=True,
                    save_bounds=True, print_progress=True, print_func=None,
-                   live_points=None):
+                   live_points=None,
+                   batch_callback_fn=None, batch_callback_fn_kwargs=None):
         """
         **The main dynamic nested sampling loop.** After an initial "baseline"
         run using a constant number of live points, dynamically allocates
@@ -1579,6 +1580,12 @@ class DynamicSampler(object):
             been sampled from the prior. Failure to provide a set of valid
             live points will result in biased results.**
 
+        batch_callback_fn : A function which will be called at the end of 
+            each batch, with signature f(results, **kwargs)
+        
+        batch_callback_fn_kwargs : keyword argument dictionary for callback
+            function.
+
         """
 
         # Initialize values.
@@ -1634,6 +1641,14 @@ class DynamicSampler(object):
                         print_func(results, niter, ncall, nbatch=0,
                                    dlogz=dlogz_init, logl_max=logl_max_init)
 
+                if batch_callback_fn is not None:
+                    if batch_callback_fn_kwargs is not None:
+                        batch_callback_fn(self.results,
+                                          **batch_callback_fn_kwargs)
+                    else:
+                        batch_callback_fn(self.results)
+
+
             # Add points in batches.
             for n in range(self.batch, maxbatch):
                 # Update stopping criteria.
@@ -1669,6 +1684,14 @@ class DynamicSampler(object):
                                               print_func=print_func,
                                               stop_val=stop_val)
                     ncall, niter, logl_bounds, results = passback
+
+                    if batch_callback_fn is not None:
+                        if batch_callback_fn_kwargs is not None:
+                            batch_callback_fn(self.results,
+                                              **batch_callback_fn_kwargs)
+                        else:
+                            batch_callback_fn(self.results)
+
                 elif logl_bounds[1] != np.inf:
                     # We ran at least one batch and now we're done!
                     if print_progress:
